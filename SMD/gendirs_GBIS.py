@@ -9,7 +9,7 @@ def mysymlink(source, dest):
 
 # Set parameters here
 molname="adk"
-
+my_replicas = 10
 script = '''set molname adk
 set temperature 300.0
 set logfreq 500
@@ -89,28 +89,28 @@ run 10000000 ;# 20ns
 '''
 
 
-def createdirectory(start, finish, resolution):
-	mymkdir(start)
-	os.chdir(start)
-	mymkdir(str(resolution))
-	os.chdir(str(resolution))
-	for fname in ["%s.psf" % molname, "%s-chirality.txt" % molname, "%s-cispeptide.txt" % molname, "%s-ssrestraints.txt" % molname]:
-		mysymlink("../../../build/%s" % fname, fname)
-	mysymlink("../../../build/%s.pdb" % start, "%s.pdb" % molname)
-	mysymlink("../../../build/%s-%d.dx" % (start, resolution), "start.dx")
-	mysymlink("../../../build/%s-%d.dx" % (finish, resolution), "finish.dx")
-	mysymlink("../../../build/%s-%d-grid.dx" % (start, resolution), "start-grid.dx")
-	mysymlink("../../../build/%s-%d-grid.dx" % (finish, resolution), "finish-grid.dx")
-	mysymlink("../../twostatedensity.conf", "twostatedensity.conf")
-	mysymlink("../../onestatepotential.conf", "onestatepotential.conf")
-	mysymlink("../../../charmm", "charmm")
+def createdirectory(start, finish, replica):
+        resolution = 5
+        mymkdir(start)
+        os.chdir(start)
+        mymkdir(str(replica))
+        os.chdir(str(replica))
+        for fname in ["%s.psf" % molname, "%s-chirality.txt" % molname, "%s-cispeptide.txt" % molname, "%s-ssrestraints.txt" % molname]:
+                mysymlink("../../../build/%s" % fname, fname)
+        mysymlink("../../../build/%s.pdb" % start, "%s.pdb" % molname)
+        mysymlink("../../../build/%s-%d.dx" % (start, resolution), "start.dx")
+        mysymlink("../../../build/%s-%d.dx" % (finish, resolution), "finish.dx")
+        mysymlink("../../../build/%s-%d-grid.dx" % (start, resolution), "start-grid.dx")
+        mysymlink("../../../build/%s-%d-grid.dx" % (finish, resolution), "finish-grid.dx")
+        mysymlink("../../twostatedensity.conf", "twostatedensity.conf")
+        mysymlink("../../../charmm", "charmm")
         mysymlink("../../../build/com.dat", "com.dat")        
         if resolution < 5:
                 mysymlink("../../../build/gridpdb-noh.pdb", "gridpdb.pdb")
         else:
                 mysymlink("../../../build/gridpdb-bb.pdb", "gridpdb.pdb")
 
-	twostatedensity = script % ('''
+        twostatedensity = script % ('''
 outputname 2statedensity
 set GRIDFILE [list start.dx finish.dx]
 mgridForce               on
@@ -132,33 +132,14 @@ set forceconstant [expr { 1.0 / (2 * abs($initvalue))}]
 
 '''
 )
-	onestatepotential = script % ('''
-outputname 1statepotential
-set GRIDFILE [list start-grid.dx finish-grid.dx]
-mgridForce               on
-for {set i 0} {$i < [llength $GRIDFILE]} {incr i} {
-    mgridForceFile $i      gridpdb.pdb
-    mgridForceCol $i       O
-    mgridForceChargeCol $i B
-    mgridForcePotFile $i   [lindex $GRIDFILE $i]
-    mgridForceScale $i     0 0 0
-}
-colvars on
-source onestatepotential.conf
-''',
-'''
-set cvname mdfffinish
-set initvalue [cv colvar $cvname value]
-set finalvalue 0
-set forceconstant [expr { 10.0 / (abs($initvalue))}]
-''')
-        namdfiles = ["twostatedensity", "onestatepotential"]
-	for i, namdscript in enumerate([twostatedensity, onestatepotential]):
-		fout = open("%s.namd" % namdfiles[i], "w")
-		fout.write(namdscript)
-		fout.close()
-	os.chdir("../..")
+
+        namdfiles = ["twostatedensity"]
+        for i, namdscript in enumerate([twostatedensity]):
+                fout = open("%s.namd" % namdfiles[i], "w")
+                fout.write(namdscript)
+                fout.close()
+        os.chdir("../..")
 
 for start, finish in zip(['open', 'closed'], ['closed', 'open']):
-	for resolution in [1,3,5,7,9,11]:
-		createdirectory(start, finish, resolution)
+	for replica in range(my_replicas):
+		createdirectory(start, finish, replica)
