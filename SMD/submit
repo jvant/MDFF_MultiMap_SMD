@@ -1,0 +1,22 @@
+#!/bin/bash
+
+conffile=${1}
+cmstr=${2}
+mynamd="/home/jvant/namd-globalridobjects/Linux-x86_64-g++";# not cuda
+#mynamd="/home/jvant/namd-globalridobjects_old/mpi_build_JV"
+mynamd="/home/jvant/NAMD/namd-globalridobjects/Linux-x86_64-g++";# cuda
+
+sbatch \
+    --job-name=smd_$cmstr \
+    -p asinghargpu1 -q asinghargpu1 \
+    -N 1 -n 8 \
+    --time=3-0:00 \
+    --gres=gpu:1 \
+    -o slurm_smd_$cmstr.out \
+<<EOF
+#!/bin/bash
+#module load correct openmpi version
+module load openmpi/3.0.3-gnu-7x-centos75 
+$mynamd/namd2 +p7 ${conffile}
+
+EOF
